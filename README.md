@@ -4,6 +4,9 @@
 
 # VB Audio Bridge
 
+> [!CAUTION]
+> This project is an unofficial, third-party, independent of Voicemeeter. It is not affiliated with, endorsed by, or in any way officially connected to VB-Audio Software or any of its subsidiaries or affiliates.
+
 Script that "hooks" the windows volume slider to <i>Voicemeeter</i>.
 So when you change the windows volume it will change the selected slider in Voicemeeter.
 Its customizable with options select which strips/buses to be assigned.
