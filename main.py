@@ -1,6 +1,4 @@
-import json
 import threading
-from pathlib import Path
 from typing import Any
 import pystray
 import voicemeeterlib
@@ -9,7 +7,9 @@ from comtypes import COMObject
 from ctypes import POINTER, cast
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume, IAudioEndpointVolumeCallback
 
-config = json.loads(open('config.json', 'r').read())
+import utils
+
+config = utils.load_config()
 
 KIND_ID = config['vm']['KIND_ID']
 STRIPS_TO_UPDATE: list[int] = config['vm']['DEFAULT_STRIPS_TO_UPDATE']
@@ -55,7 +55,7 @@ selected_targets: set[tuple[str, int]] = normalize_selected_targets(initial_sele
 
 class TrayController:
     def create_icon_image(self) -> Image.Image:
-        icon_path = Path(__file__).with_name("VBAB.png")
+        icon_path = utils.resource_path("VBAB.png")
         with Image.open(icon_path) as image:
             return image.convert("RGBA").copy()
 
