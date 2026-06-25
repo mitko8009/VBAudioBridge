@@ -7,7 +7,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('default_config.json', '.'),
-        ('VBAB.png', '.')
+        ('app.ico', '.')
     ],
     hiddenimports=[],
     hookspath=[],

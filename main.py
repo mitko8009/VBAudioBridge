@@ -1,3 +1,4 @@
+import os
 import threading
 from typing import Any
 import pystray
@@ -55,7 +56,7 @@ selected_targets: set[tuple[str, int]] = normalize_selected_targets(initial_sele
 
 class TrayController:
     def create_icon_image(self) -> Image.Image:
-        icon_path = utils.resource_path("VBAB.png")
+        icon_path = utils.resource_path("app.ico")
         with Image.open(icon_path) as image:
             return image.convert("RGBA").copy()
 
@@ -113,13 +114,15 @@ class TrayController:
         )
 
     def build_tray_menu(self):
+        yield pystray.MenuItem("Open config file", lambda _icon, _item: os.startfile(utils.config_path()))
+        yield pystray.Menu.SEPARATOR
         yield pystray.MenuItem("Strips", None, enabled=False)
         yield from (self.tray_menu_item('strip', strip) for strip in AVAILABLE_STRIPS)
         yield pystray.Menu.SEPARATOR
         yield pystray.MenuItem("Buses", None, enabled=False)
         yield from (self.tray_menu_item('bus', bus) for bus in AVAILABLE_BUSES)
         yield pystray.Menu.SEPARATOR
-        yield pystray.MenuItem("Exit", lambda icon, _item: self.exit_app(icon))
+        yield pystray.MenuItem("Exit VBAB", lambda icon, _item: self.exit_app(icon))
 
     @staticmethod
     def exit_app(icon) -> None:
