@@ -22,6 +22,7 @@ DISABLE_MULTI_SELECT_STRIPS: bool = config['vm'].get('DISABLE_MULTI_SELECT_STRIP
 DISABLE_MULTI_SELECT_BUSES: bool = config['vm'].get('DISABLE_MULTI_SELECT_BUSES', False)
 AVAILABLE_STRIPS = config['vm']['AVAILABLE_STRIPS']
 AVAILABLE_BUSES = config['vm']['AVAILABLE_BUSES']
+ROUND_TO_INTEGER = config.get('ROUND_TO_INTEGER', False)
 shutdown_event = threading.Event()
 current_vm: Any = None
 current_volume_controller: Any = None
@@ -163,13 +164,13 @@ class VolumeCallback(COMObject):
         self._vm = vm
         self._last_gain = None
         self._last_mute_state = None
-    
+        
     def OnNotify(self, pNotify):
         if pNotify:
             notification_data = pNotify.contents
 
             normalized_volume = max(0.0, min(1.0, float(notification_data.fMasterVolume)))
-            volume_db = round(MIN_VOLUME_DB + normalized_volume * (MAX_VOLUME_DB - MIN_VOLUME_DB), 2)
+            volume_db = round(MIN_VOLUME_DB + normalized_volume * (MAX_VOLUME_DB - MIN_VOLUME_DB), 0 if ROUND_TO_INTEGER else 1)
             muted = bool(notification_data.bMuted)
 
             if selected_targets and (

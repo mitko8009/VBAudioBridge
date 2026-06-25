@@ -10,5 +10,6 @@
         "MATCH_MUTE_STATE": true,
         "DISABLE_MULTI_SELECT_STRIPS": true,
         "DISABLE_MULTI_SELECT_BUSES": false
-    }
+    },
+    "ROUND_TO_INTEGER": false
 }
