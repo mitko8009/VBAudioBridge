@@ -53,42 +53,81 @@ def normalize_selected_targets(targets: list[tuple[str, int]]) -> set[tuple[str,
 selected_targets: set[tuple[str, int]] = normalize_selected_targets(initial_selected_targets)
 
 
-def create_icon_image() -> Image.Image:
-    icon_path = Path(__file__).with_name("VBAB.png")
-    with Image.open(icon_path) as image:
-        return image.convert("RGBA").copy()
+class TrayController:
+    def create_icon_image(self) -> Image.Image:
+        icon_path = Path(__file__).with_name("VBAB.png")
+        with Image.open(icon_path) as image:
+            return image.convert("RGBA").copy()
+
+    @staticmethod
+    def target_key(target_type: str, index: int) -> tuple[str, int]:
+        return target_type, index
+
+    def is_target_selected(self, target_type: str, index: int) -> bool:
+        return self.target_key(target_type, index) in selected_targets
+
+    def target_label(self, target_type: str, index: int) -> str:
+        if current_vm is None:
+            return f"{target_type.title()} {index}"
+
+        if target_type == 'strip':
+            label = current_vm.strip[index].label
+        elif target_type == 'bus' and (
+            (KIND_ID == "potato" and index < 5) or
+            (KIND_ID == "banana" and index < 3)
+        ):
+            label = current_vm.bus[index].device.name
+        else:
+            label = current_vm.bus[index].label
+
+        return f"{target_type.title()} {index}" if not label else f"{target_type.title()} {index} - {label}"
+
+    def sync_windows_volume_to_target(self, target_type: str, index: int) -> None:
+        if current_volume_controller is None:
+            return
+
+        gain_db = target_gain(target_type, index)
+        scalar = (gain_db - MIN_VOLUME_DB) / (MAX_VOLUME_DB - MIN_VOLUME_DB)
+        current_volume_controller.SetMasterVolumeLevelScalar(max(0.0, min(1.0, scalar)), None)
+
+    def toggle_target(self, icon, target_type: str, index: int) -> None:
+        key = self.target_key(target_type, index)
+
+        if key in selected_targets:
+            selected_targets.remove(key)
+        else:
+            if target_type == 'strip' and DISABLE_MULTI_SELECT_STRIPS:
+                selected_targets.difference_update({target for target in selected_targets if target[0] == 'strip'})
+            if target_type == 'bus' and DISABLE_MULTI_SELECT_BUSES:
+                selected_targets.difference_update({target for target in selected_targets if target[0] == 'bus'})
+            selected_targets.add(key)
+            self.sync_windows_volume_to_target(target_type, index)
+
+        icon.update_menu()
+
+    def tray_menu_item(self, target_type: str, index: int) -> pystray.MenuItem:
+        return pystray.MenuItem(
+            self.target_label(target_type, index),
+            lambda icon, _item: self.toggle_target(icon, target_type, index),
+            checked=lambda _item, target_type=target_type, index=index: self.is_target_selected(target_type, index),
+        )
+
+    def build_tray_menu(self):
+        yield pystray.MenuItem("Strips", None, enabled=False)
+        yield from (self.tray_menu_item('strip', strip) for strip in AVAILABLE_STRIPS)
+        yield pystray.Menu.SEPARATOR
+        yield pystray.MenuItem("Buses", None, enabled=False)
+        yield from (self.tray_menu_item('bus', bus) for bus in AVAILABLE_BUSES)
+        yield pystray.Menu.SEPARATOR
+        yield pystray.MenuItem("Exit", lambda icon, _item: self.exit_app(icon))
+
+    @staticmethod
+    def exit_app(icon) -> None:
+        shutdown_event.set()
+        icon.stop()
 
 
-def target_key(target_type: str, index: int) -> tuple[str, int]:
-    return target_type, index
-
-
-def is_target_selected(target_type: str, index: int) -> bool:
-    return target_key(target_type, index) in selected_targets
-
-
-def target_label(target_type: str, index: int) -> str:
-    if current_vm is None:
-        return f"{target_type.title()} {index}"
-
-    # target = current_vm.strip[index] if target_type == 'strip' else current_vm.bus[index]
-    # label = target.label
-    if target_type == 'strip':
-        label = current_vm.strip[index].label
-    elif target_type == 'bus' and index < 5:
-        label = current_vm.bus[index].device.name
-    else:
-        label = current_vm.bus[index].label
-        
-    return f"{target_type.title()} {index}" if not label else f"{target_type.title()} {index} - {label}"
-
-
-def target_gain(target_type: str, index: int) -> float:
-    if current_vm is None:
-        return 0.0
-
-    target = current_vm.strip[index] if target_type == 'strip' else current_vm.bus[index]
-    return float(target.gain)
+tray_controller = TrayController()
 
 
 def apply_volume_to_target(target_type: str, index: int, volume_db: float, muted: bool) -> None:
@@ -101,52 +140,16 @@ def apply_volume_to_target(target_type: str, index: int, volume_db: float, muted
         target.mute = muted
 
 
+def target_gain(target_type: str, index: int) -> float:
+    if current_vm is None:
+        return 0.0
+
+    target = current_vm.strip[index] if target_type == 'strip' else current_vm.bus[index]
+    return float(target.gain)
+
+
 def sync_windows_volume_to_target(target_type: str, index: int) -> None:
-    if current_volume_controller is None:
-        return
-
-    gain_db = target_gain(target_type, index)
-    scalar = (gain_db - MIN_VOLUME_DB) / (MAX_VOLUME_DB - MIN_VOLUME_DB)
-    current_volume_controller.SetMasterVolumeLevelScalar(max(0.0, min(1.0, scalar)), None)
-
-
-def toggle_target(icon, target_type: str, index: int) -> None:
-    key = target_key(target_type, index)
-
-    if key in selected_targets:
-        selected_targets.remove(key)
-    else:
-        if target_type == 'strip' and DISABLE_MULTI_SELECT_STRIPS:
-            selected_targets.difference_update({target for target in selected_targets if target[0] == 'strip'})
-        if target_type == 'bus' and DISABLE_MULTI_SELECT_BUSES:
-            selected_targets.difference_update({target for target in selected_targets if target[0] == 'bus'})
-        selected_targets.add(key)
-        sync_windows_volume_to_target(target_type, index)
-
-    icon.update_menu()
-
-
-def tray_menu_item(target_type: str, index: int) -> pystray.MenuItem:
-    return pystray.MenuItem(
-        target_label(target_type, index),
-        lambda icon, _item: toggle_target(icon, target_type, index),
-        checked=lambda _item, target_type=target_type, index=index: is_target_selected(target_type, index),
-    )
-
-
-def build_tray_menu():
-    yield pystray.MenuItem("Strips", None, enabled=False)
-    yield from (tray_menu_item('strip', strip) for strip in AVAILABLE_STRIPS)
-    yield pystray.Menu.SEPARATOR
-    yield pystray.MenuItem("Buses", None, enabled=False)
-    yield from (tray_menu_item('bus', bus) for bus in AVAILABLE_BUSES)
-    yield pystray.Menu.SEPARATOR
-    yield pystray.MenuItem("Exit", lambda icon, _item: exit_app(icon))
-
-
-def exit_app(icon) -> None:
-    shutdown_event.set()
-    icon.stop()
+    tray_controller.sync_windows_volume_to_target(target_type, index)
 
 
 class VolumeCallback(COMObject):
@@ -187,7 +190,7 @@ def main():
         current_vm = vm
         current_volume_controller = volume_controller
         callback_instance = VolumeCallback(vm)
-        tray_icon = pystray.Icon("VBAudioBridge", create_icon_image(), "VBAudioBridge", pystray.Menu(build_tray_menu))
+        tray_icon = pystray.Icon("VBAudioBridge", tray_controller.create_icon_image(), "VBAudioBridge", pystray.Menu(tray_controller.build_tray_menu))
         volume_controller.RegisterControlChangeNotify(callback_instance) # type: ignore
 
         try:
