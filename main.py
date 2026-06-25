@@ -17,15 +17,40 @@ BUSES_TO_UPDATE: list[int] = config['vm']['DEFAULT_BUSES_TO_UPDATE']
 MAX_VOLUME_DB: float = config['vm']['MAX_VOLUME_DB']
 MIN_VOLUME_DB: float = config['vm']['MIN_VOLUME_DB']
 MATCH_MUTE_STATE: bool = config['vm']['MATCH_MUTE_STATE']
+DISABLE_MULTI_SELECT_STRIPS: bool = config['vm'].get('DISABLE_MULTI_SELECT_STRIPS', False)
+DISABLE_MULTI_SELECT_BUSES: bool = config['vm'].get('DISABLE_MULTI_SELECT_BUSES', False)
 AVAILABLE_STRIPS = config['vm']['AVAILABLE_STRIPS']
 AVAILABLE_BUSES = config['vm']['AVAILABLE_BUSES']
 shutdown_event = threading.Event()
 current_vm: Any = None
 current_volume_controller: Any = None
-selected_targets: set[tuple[str, int]] = {
-    *{('strip', strip) for strip in STRIPS_TO_UPDATE},
-    *{('bus', bus) for bus in BUSES_TO_UPDATE},
-}
+initial_selected_targets: list[tuple[str, int]] = [
+    *[("strip", strip) for strip in STRIPS_TO_UPDATE],
+    *[("bus", bus) for bus in BUSES_TO_UPDATE],
+]
+
+def normalize_selected_targets(targets: list[tuple[str, int]]) -> set[tuple[str, int]]:
+    normalized_targets: set[tuple[str, int]] = set()
+    selected_strip = False
+    selected_bus = False
+
+    for target_type, index in targets:
+        if target_type == 'strip':
+            if DISABLE_MULTI_SELECT_STRIPS:
+                if selected_strip:
+                    continue
+                selected_strip = True
+            normalized_targets.add((target_type, index))
+        elif target_type == 'bus':
+            if DISABLE_MULTI_SELECT_BUSES:
+                if selected_bus:
+                    continue
+                selected_bus = True
+            normalized_targets.add((target_type, index))
+
+    return normalized_targets
+
+selected_targets: set[tuple[str, int]] = normalize_selected_targets(initial_selected_targets)
 
 
 def create_icon_image() -> Image.Image:
@@ -91,6 +116,10 @@ def toggle_target(icon, target_type: str, index: int) -> None:
     if key in selected_targets:
         selected_targets.remove(key)
     else:
+        if target_type == 'strip' and DISABLE_MULTI_SELECT_STRIPS:
+            selected_targets.difference_update({target for target in selected_targets if target[0] == 'strip'})
+        if target_type == 'bus' and DISABLE_MULTI_SELECT_BUSES:
+            selected_targets.difference_update({target for target in selected_targets if target[0] == 'bus'})
         selected_targets.add(key)
         sync_windows_volume_to_target(target_type, index)
 

@@ -7,6 +7,8 @@
         "AVAILABLE_BUSES": [0, 1, 2],
         "MAX_VOLUME_DB": 12.0,
         "MIN_VOLUME_DB": -60.0,
-        "MATCH_MUTE_STATE": true
+        "MATCH_MUTE_STATE": true,
+        "DISABLE_MULTI_SELECT_STRIPS": true,
+        "DISABLE_MULTI_SELECT_BUSES": false
     }
 }
