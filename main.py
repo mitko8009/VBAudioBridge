@@ -1,5 +1,6 @@
 import os
 import threading
+import asyncio
 from typing import Any
 import pystray
 import voicemeeterlib
@@ -23,6 +24,7 @@ DISABLE_MULTI_SELECT_BUSES: bool = config['vm'].get('DISABLE_MULTI_SELECT_BUSES'
 AVAILABLE_STRIPS = config['vm']['AVAILABLE_STRIPS']
 AVAILABLE_BUSES = config['vm']['AVAILABLE_BUSES']
 ROUND_TO_INTEGER = config.get('ROUND_TO_INTEGER', False)
+PAUSE_MEDIA_ON_MUTE = config.get('PAUSE_MEDIA_ON_MUTE', True)
 shutdown_event = threading.Event()
 current_vm: Any = None
 current_volume_controller: Any = None
@@ -139,10 +141,10 @@ def apply_volume_to_target(target_type: str, index: int, volume_db: float, muted
         return
 
     target = current_vm.strip[index] if target_type == 'strip' else current_vm.bus[index]
+    
     target.gain = volume_db
-    if MATCH_MUTE_STATE:
-        target.mute = muted
-
+    if MATCH_MUTE_STATE: target.mute = muted
+    if PAUSE_MEDIA_ON_MUTE: asyncio.run(utils.control_media(not muted))
 
 def target_gain(target_type: str, index: int) -> float:
     if current_vm is None:

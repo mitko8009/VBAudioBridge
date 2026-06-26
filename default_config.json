@@ -11,5 +11,6 @@
         "DISABLE_MULTI_SELECT_STRIPS": true,
         "DISABLE_MULTI_SELECT_BUSES": false
     },
-    "ROUND_TO_INTEGER": false
+    "ROUND_TO_INTEGER": false,
+    "PAUSE_MEDIA_ON_MUTE": true
 }

@@ -4,10 +4,27 @@ import shutil
 import sys
 from pathlib import Path
 from typing import Any
+from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessionManager as MediaManager
 
 
 APP_NAME = "VBAudioBridge"
 DEFAULT_CONFIG_PATH = "default_config.json"
+
+
+async def control_media(play: bool):
+    manager = await MediaManager.request_async()
+    sessions = manager.get_sessions()
+    
+    if not sessions:
+        print("No active media sessions found.")
+        return
+
+    for session in sessions:
+        playback_info = session.get_playback_info()
+        status = playback_info.playback_status
+
+        if play and status == 5: await session.try_play_async()
+        elif not play and status == 4: await session.try_pause_async()
 
 
 def resource_path(name: str) -> Path:
