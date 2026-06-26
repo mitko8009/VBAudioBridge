@@ -28,12 +28,13 @@ async def control_media(play: bool):
         print("No active media sessions found.")
         return
 
-    for session in sessions:
-        playback_info = session.get_playback_info()
-        status = playback_info.playback_status
+    session = sessions[0]
+    status = session.get_playback_info().playback_status
 
-        if play and status == 5: await session.try_play_async()
-        elif not play and status == 4: await session.try_pause_async()
+    if play and status == 5:
+        await session.try_play_async()
+    elif not play and status == 4:
+        await session.try_pause_async()
 
 
 def resource_path(name: str) -> Path:
