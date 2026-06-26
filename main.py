@@ -186,7 +186,7 @@ class VolumeCallback(COMObject):
             if selected_targets and (
                 self._last_gain != volume_db or self._last_mute_state != muted
             ):
-                if MUTE_FOR_NEXT_TRACK and not (notification_data.fMasterVolume == 0.0):
+                if MUTE_FOR_NEXT_TRACK and (not notification_data.fMasterVolume == 0.0):
                     if muted != self._last_mute_state and muted:
                         asyncio.run(utils.play_next_track())
                         self._volume_controller.SetMute(0, None)
@@ -196,9 +196,7 @@ class VolumeCallback(COMObject):
                 for target_type, index in selected_targets:
                     apply_volume_to_target(target_type, index, volume_db, muted)
                     
-                if PAUSE_MEDIA_ON_MUTE and \
-                (self._last_mute_state != muted) and \
-                (not MUTE_FOR_NEXT_TRACK):
+                if PAUSE_MEDIA_ON_MUTE and (self._last_mute_state != muted):
                     asyncio.run(utils.control_media(not muted))
 
                 self._last_gain = volume_db
