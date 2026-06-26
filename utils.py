@@ -37,6 +37,18 @@ async def control_media(play: bool):
         await session.try_pause_async()
 
 
+async def play_next_track():
+    manager = await MediaManager.request_async()
+    sessions = manager.get_sessions()
+    
+    if not sessions:
+        print("No active media sessions found.")
+        return
+
+    session = sessions[0]
+    await session.try_skip_next_async()
+
+
 def resource_path(name: str) -> Path:
     if getattr(sys, 'frozen', False):
         base_path = Path(sys._MEIPASS)  # type: ignore[attr-defined]

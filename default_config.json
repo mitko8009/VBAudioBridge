@@ -7,10 +7,11 @@
         "AVAILABLE_BUSES": [0, 1],
         "MAX_VOLUME_DB": 0.0,
         "MIN_VOLUME_DB": -60.0,
+        "ROUND_TO_INTEGER": false,
         "MATCH_MUTE_STATE": true,
         "DISABLE_MULTI_SELECT_STRIPS": true,
         "DISABLE_MULTI_SELECT_BUSES": false
     },
-    "ROUND_TO_INTEGER": false,
-    "PAUSE_MEDIA_ON_MUTE": true
+    "PAUSE_MEDIA_ON_MUTE": true,
+    "MUTE_FOR_NEXT_TRACK": false
 }

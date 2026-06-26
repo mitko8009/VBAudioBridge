@@ -26,8 +26,9 @@ DISABLE_MULTI_SELECT_STRIPS: bool = config['vm'].get('DISABLE_MULTI_SELECT_STRIP
 DISABLE_MULTI_SELECT_BUSES: bool = config['vm'].get('DISABLE_MULTI_SELECT_BUSES', False)
 AVAILABLE_STRIPS = config['vm']['AVAILABLE_STRIPS']
 AVAILABLE_BUSES = config['vm']['AVAILABLE_BUSES']
-ROUND_TO_INTEGER = config.get('ROUND_TO_INTEGER', False)
+ROUND_TO_INTEGER = config['vm'].get('ROUND_TO_INTEGER', False)
 PAUSE_MEDIA_ON_MUTE = config.get('PAUSE_MEDIA_ON_MUTE', True)
+MUTE_FOR_NEXT_TRACK = config.get('MUTE_FOR_NEXT_TRACK', True)
 shutdown_event = threading.Event()
 current_vm: Any = None
 current_volume_controller: Any = None
@@ -167,11 +168,12 @@ def sync_windows_volume_to_target(target_type: str, index: int) -> None:
 class VolumeCallback(COMObject):
     _com_interfaces_ = [IAudioEndpointVolumeCallback]
 
-    def __init__(self, vm):
+    def __init__(self, vm, volume_controller):
         super().__init__()
         self._vm = vm
         self._last_gain = None
         self._last_mute_state = None
+        self._volume_controller = volume_controller
         
     def OnNotify(self, pNotify):
         if pNotify:
@@ -184,10 +186,19 @@ class VolumeCallback(COMObject):
             if selected_targets and (
                 self._last_gain != volume_db or self._last_mute_state != muted
             ):
+                if MUTE_FOR_NEXT_TRACK and not (notification_data.fMasterVolume == 0.0):
+                    if muted != self._last_mute_state and muted:
+                        asyncio.run(utils.play_next_track())
+                        self._volume_controller.SetMute(0, None)
+                        
+                    muted = False
+                
                 for target_type, index in selected_targets:
                     apply_volume_to_target(target_type, index, volume_db, muted)
                     
-                if PAUSE_MEDIA_ON_MUTE and (self._last_mute_state != muted):
+                if PAUSE_MEDIA_ON_MUTE and \
+                (self._last_mute_state != muted) and \
+                (not MUTE_FOR_NEXT_TRACK):
                     asyncio.run(utils.control_media(not muted))
 
                 self._last_gain = volume_db
@@ -211,7 +222,7 @@ def main():
     with voicemeeterlib.api(KIND_ID) as vm:
         current_vm = vm
         current_volume_controller = volume_controller
-        callback_instance = VolumeCallback(vm)
+        callback_instance = VolumeCallback(vm, volume_controller)
         tray_icon = pystray.Icon("VBAudioBridge", tray_controller.create_icon_image(), "VBAudioBridge", pystray.Menu(tray_controller.build_tray_menu))
         volume_controller.RegisterControlChangeNotify(callback_instance) # type: ignore
 
