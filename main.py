@@ -3,7 +3,7 @@
 import os
 import threading
 import asyncio
-from time import sleep, time
+from time import sleep
 from typing import Any
 import pystray
 import voicemeeterlib
@@ -148,8 +148,9 @@ def apply_volume_to_target(target_type: str, index: int, volume_db: float, muted
     target = current_vm.strip[index] if target_type == 'strip' else current_vm.bus[index]
     
     target.gain = volume_db
-    if MATCH_MUTE_STATE: target.mute = muted
-    if PAUSE_MEDIA_ON_MUTE: asyncio.run(utils.control_media(not muted))
+    if MATCH_MUTE_STATE:
+        target.mute = muted
+
 
 def target_gain(target_type: str, index: int) -> float:
     if current_vm is None:
@@ -185,6 +186,9 @@ class VolumeCallback(COMObject):
             ):
                 for target_type, index in selected_targets:
                     apply_volume_to_target(target_type, index, volume_db, muted)
+                    
+                if PAUSE_MEDIA_ON_MUTE and (self._last_mute_state != muted):
+                    asyncio.run(utils.control_media(not muted))
 
                 self._last_gain = volume_db
                 self._last_mute_state = muted
