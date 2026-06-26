@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import psutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,14 @@ from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessio
 
 APP_NAME = "VBAudioBridge"
 DEFAULT_CONFIG_PATH = "default_config.json"
+VB_PROCESS_NAMES = {
+    "voicemeeter.exe",
+    "voicemeeter_x64.exe",
+    "voicemeeter8.exe",
+    "voicemeeter8x64.exe",
+    "voicemeeterpro.exe",
+    "voicemeeterpro_x64.exe",
+}
 
 
 async def control_media(play: bool):
@@ -101,3 +110,14 @@ def load_config() -> dict:
         return merged_config
 
     return current_config
+
+
+def is_voicemeeter_running() -> bool:
+    for process in psutil.process_iter(['name']):
+        try: 
+            if process.info['name'] in VB_PROCESS_NAMES:
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+        
+    return False

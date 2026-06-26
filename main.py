@@ -1,6 +1,9 @@
+# --- coding: utf-8 ---
+
 import os
 import threading
 import asyncio
+from time import sleep, time
 from typing import Any
 import pystray
 import voicemeeterlib
@@ -28,6 +31,8 @@ PAUSE_MEDIA_ON_MUTE = config.get('PAUSE_MEDIA_ON_MUTE', True)
 shutdown_event = threading.Event()
 current_vm: Any = None
 current_volume_controller: Any = None
+tries_to_connect: int = 0
+max_tries_to_connect: int = 180
 initial_selected_targets: list[tuple[str, int]] = [
     *[("strip", strip) for strip in STRIPS_TO_UPDATE],
     *[("bus", bus) for bus in BUSES_TO_UPDATE],
@@ -187,6 +192,13 @@ class VolumeCallback(COMObject):
 
 
 def main():
+    global tries_to_connect
+
+    if not utils.is_voicemeeter_running():
+        tries_to_connect += 1
+        if tries_to_connect < max_tries_to_connect: main()
+        return sleep(1)
+    
     global current_vm, current_volume_controller
 
     device = AudioUtilities.GetSpeakers()
