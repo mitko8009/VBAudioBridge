@@ -15,6 +15,7 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume, IAudioEndpointVolu
 import utils
 
 config = utils.load_config()
+logger = utils.setup_logger(config['logging'])
 
 KIND_ID = config['vm']['KIND_ID']
 STRIPS_TO_UPDATE: list[int] = config['vm']['DEFAULT_STRIPS_TO_UPDATE']
@@ -123,13 +124,14 @@ class TrayController:
         )
 
     def build_tray_menu(self):
-        yield pystray.MenuItem("Open config file", lambda _icon, _item: os.startfile(utils.config_path()))
-        yield pystray.Menu.SEPARATOR
         yield pystray.MenuItem("Strips", None, enabled=False)
         yield from (self.tray_menu_item('strip', strip) for strip in AVAILABLE_STRIPS)
         yield pystray.Menu.SEPARATOR
         yield pystray.MenuItem("Buses", None, enabled=False)
         yield from (self.tray_menu_item('bus', bus) for bus in AVAILABLE_BUSES)
+        yield pystray.Menu.SEPARATOR
+        yield pystray.MenuItem("Open config file", lambda _icon, _item: os.startfile(utils.config_path()))
+        yield pystray.MenuItem("Open debug console", lambda _icon, _item: utils.open_console(utils.resolve_log_file_path(config['logging'])))
         yield pystray.Menu.SEPARATOR
         yield pystray.MenuItem("Exit VBAB", lambda icon, _item: self.exit_app(icon))
 
@@ -208,9 +210,12 @@ def main():
     global tries_to_connect
 
     if not utils.is_voicemeeter_running():
+        logger.warning("Voicemeeter is not running. Please start Voicemeeter and try again.")
         tries_to_connect += 1
         if tries_to_connect < max_tries_to_connect: main()
         return sleep(1)
+    else:
+        logger.info("Voicemeeter is running. Proceeding with initialization.")
     
     global current_vm, current_volume_controller
 

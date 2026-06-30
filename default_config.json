@@ -13,5 +13,36 @@
         "DISABLE_MULTI_SELECT_BUSES": false
     },
     "PAUSE_MEDIA_ON_MUTE": true,
-    "MUTE_FOR_NEXT_TRACK": false
+    "MUTE_FOR_NEXT_TRACK": false,
+    "logging": {
+        "version": 1,
+        "disable_existing_loggers": false,
+        "formatters": {
+            "simple": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            }
+        },
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": "DEBUG",
+                "formatter": "simple",
+                "stream": "ext://sys.stdout"
+            },
+            "file": {
+                "class": "logging.FileHandler",
+                "level": "INFO",
+                "formatter": "simple",
+                "filename": "app.log",
+                "mode": "w"
+            }
+        },
+        "root": {
+            "level": "DEBUG",
+            "handlers": [
+                "console",
+                "file"
+            ]
+        }
+    }
 }

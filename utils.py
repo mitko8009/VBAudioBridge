@@ -1,8 +1,13 @@
 import json
+import copy
 import os
+import subprocess
 import shutil
 import psutil
 import sys
+import threading
+import logging
+import logging.config
 from pathlib import Path
 from typing import Any
 from winrt.windows.media.control import GlobalSystemMediaTransportControlsSessionManager as MediaManager
@@ -25,7 +30,7 @@ async def control_media(play: bool):
     sessions = manager.get_sessions()
     
     if not sessions:
-        print("No active media sessions found.")
+        logging.info("No active media sessions found.")
         return
 
     session = sessions[0]
@@ -42,7 +47,7 @@ async def play_next_track():
     sessions = manager.get_sessions()
     
     if not sessions:
-        print("No active media sessions found.")
+        logging.info("No active media sessions found.")
         return
 
     session = sessions[0]
@@ -134,3 +139,62 @@ def is_voicemeeter_running() -> bool:
             pass
         
     return False
+
+
+def setup_logger(config: dict) -> logging.Logger:
+    logging_config = copy.deepcopy(config)
+
+    log_file_path = resolve_log_file_path(logging_config)
+    file_handler = logging_config.get("handlers", {}).get("file")
+    if isinstance(file_handler, dict):
+        file_handler["filename"] = str(log_file_path)
+        file_handler["mode"] = "w"
+
+    logging.config.dictConfig(logging_config)
+    logger = logging.getLogger(APP_NAME)
+
+    def log_uncaught_exception(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+
+        logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+    def log_thread_exception(args):
+        logger.error(
+            "Uncaught thread exception in %s",
+            args.thread.name,
+            exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+        )
+
+    sys.excepthook = log_uncaught_exception
+    threading.excepthook = log_thread_exception
+
+    return logger
+
+
+def resolve_log_file_path(logging_config: dict) -> Path:
+    file_handler = logging_config.get("handlers", {}).get("file")
+    log_file_name = "app.log"
+
+    if isinstance(file_handler, dict):
+        log_file_name = file_handler.get("filename", log_file_name)
+
+    log_file_path = config_path().parent / log_file_name
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    return log_file_path
+
+
+def open_console(log_file_path: Path) -> None:
+    log_file_path.parent.mkdir(parents=True, exist_ok=True)
+    log_file_path.touch(exist_ok=True)
+
+    command = (
+        f"Get-Content -Path '{str(log_file_path).replace("'", "''")}' "
+        "-Tail 50 -Wait"
+    )
+
+    subprocess.Popen(
+        ["powershell", "-NoExit", "-Command", command],
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
+    )
