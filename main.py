@@ -7,6 +7,7 @@ from time import sleep
 from typing import Any
 import pystray
 import voicemeeterlib
+from voicemeeterlib.error import VMError
 from PIL import Image
 from comtypes import COMObject
 from ctypes import POINTER, cast
@@ -33,8 +34,6 @@ MUTE_FOR_NEXT_TRACK = config.get('MUTE_FOR_NEXT_TRACK', True)
 shutdown_event = threading.Event()
 current_vm: Any = None
 current_volume_controller: Any = None
-tries_to_connect: int = 0
-max_tries_to_connect: int = 180
 initial_selected_targets: list[tuple[str, int]] = [
     *[("strip", strip) for strip in STRIPS_TO_UPDATE],
     *[("bus", bus) for bus in BUSES_TO_UPDATE],
@@ -207,33 +206,42 @@ class VolumeCallback(COMObject):
 
 
 def main():
-    global tries_to_connect
-
-    if not utils.is_voicemeeter_running():
-        logger.warning("Voicemeeter is not running. Please start Voicemeeter and try again.")
-        tries_to_connect += 1
-        if tries_to_connect < max_tries_to_connect: main()
-        return sleep(1)
-    else:
-        logger.info("Voicemeeter is running. Proceeding with initialization.")
-    
     global current_vm, current_volume_controller
 
     device = AudioUtilities.GetSpeakers()
     volume_controller = cast(device.EndpointVolume, POINTER(IAudioEndpointVolume)) # type: ignore
 
-    with voicemeeterlib.api(KIND_ID) as vm:
-        current_vm = vm
-        current_volume_controller = volume_controller
-        callback_instance = VolumeCallback(vm, volume_controller)
-        tray_icon = pystray.Icon("VBAudioBridge", tray_controller.create_icon_image(), "VBAudioBridge", pystray.Menu(tray_controller.build_tray_menu))
-        volume_controller.RegisterControlChangeNotify(callback_instance) # type: ignore
+    while not shutdown_event.is_set():
+        if not utils.is_voicemeeter_running():
+            logger.warning("Voicemeeter is not running. Waiting for it to start...")
+            sleep(1)
+            continue
+
+        logger.info("Voicemeeter is running. Proceeding with initialization.")
 
         try:
-            tray_icon.run()
-        finally:
-            volume_controller.UnregisterControlChangeNotify(callback_instance) # type: ignore
-            shutdown_event.set()
+            with voicemeeterlib.api(KIND_ID) as vm:
+                current_vm = vm
+                current_volume_controller = volume_controller
+                callback_instance = VolumeCallback(vm, volume_controller)
+                tray_icon = pystray.Icon("VBAudioBridge", tray_controller.create_icon_image(), "VBAudioBridge", pystray.Menu(tray_controller.build_tray_menu))
+                volume_controller.RegisterControlChangeNotify(callback_instance) # type: ignore
+
+                try:
+                    tray_icon.run()
+                finally:
+                    volume_controller.UnregisterControlChangeNotify(callback_instance) # type: ignore
+                    shutdown_event.set()
+            return
+        except VMError as error:
+            if "Timeout logging into the api" in str(error):
+                logger.warning("Voicemeeter API is not ready yet. Waiting and retrying...")
+                sleep(1)
+                continue
+            raise
+        except Exception as error:
+            logger.error(f"An error occurred: {error}")
+            raise
 
 
 if __name__ == '__main__':
