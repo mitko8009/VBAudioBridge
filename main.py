@@ -31,6 +31,7 @@ AVAILABLE_BUSES = config['vm']['AVAILABLE_BUSES']
 ROUND_TO_INTEGER = config['vm'].get('ROUND_TO_INTEGER', False)
 PAUSE_MEDIA_ON_MUTE = config.get('PAUSE_MEDIA_ON_MUTE', True)
 MUTE_FOR_NEXT_TRACK = config.get('MUTE_FOR_NEXT_TRACK', True)
+LOG_ON_DELAY: int = config['vm'].get('LOG_ON_DELAY', 10)
 shutdown_event = threading.Event()
 current_vm: Any = None
 current_volume_controller: Any = None
@@ -217,7 +218,8 @@ def main():
             sleep(1)
             continue
 
-        logger.info("Voicemeeter is running. Proceeding with initialization.")
+        logger.info(f"Voicemeeter is running. Proceeding with initialization after a short delay ({str(LOG_ON_DELAY)}s).")
+        sleep(LOG_ON_DELAY)
 
         try:
             with voicemeeterlib.api(KIND_ID) as vm:
